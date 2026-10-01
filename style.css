@@ -618,7 +618,7 @@ body.program-mode .content-area {
 /* 7열 캘린더 그리드 */
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr)); /* 일정 글자 길이와 상관없이 7칸 같은 너비 */
   gap: 8px;
 }
 
@@ -643,6 +643,7 @@ body.program-mode .content-area {
   padding: 6px 8px;
   display: flex;
   flex-direction: column;
+  min-width: 0; /* 긴 일정 때문에 칸이 늘어나지 않게 */
   transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
@@ -677,6 +678,7 @@ body.program-mode .content-area {
   flex-direction: column;
   gap: 3px;
   overflow: hidden;
+  min-width: 0;
 }
 
 .cal-event-tag {
