@@ -1428,3 +1428,10 @@ body.program-mode .content-area {
   color: var(--text-muted, #8b93a7);
   white-space: nowrap;
 }
+
+/* 왼쪽 메뉴로 이동할 때 위쪽 고정 바(64px)에 섹션 윗부분이 가려지지 않게 */
+#calendarSection,
+#noticesSection,
+#allProgramsSection {
+  scroll-margin-top: 84px;
+}
