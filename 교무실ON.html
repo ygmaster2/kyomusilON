@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>교무실ON | 학교 업무 & 수업 혁신 포털</title>
+  <meta name="description" content="10개 학교 부서별 업무 분장, 월별 학사 일정 달력, 교직원 공지 및 학교 업무 프로그램을 한곳에 모은 교무실ON 포털">
+
+  <!-- Pretendard Web Font -->
+  <link rel="stylesheet" as="style" crossorigin
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <div class="app-layout">
+
+    <!-- ==========================================================================
+         1. 좌측 사이드바 (아코디언 트리 메뉴 구조)
+         ========================================================================== -->
+    <aside class="sidebar" id="sidebar">
+
+      <!-- 상단 브랜드 로고 -->
+      <div class="sidebar-header">
+        <div class="sidebar-brand" id="brandHomeBtn">
+          <div class="brand-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3.3" y="4" width="17.4" height="12.2" rx="1.6"></rect>
+              <line x1="6.3" y1="7.4" x2="17.7" y2="7.4"></line>
+              <line x1="6.3" y1="10" x2="14.6" y2="10"></line>
+              <line x1="6.3" y1="12.6" x2="16.2" y2="12.6"></line>
+              <line x1="12" y1="16.2" x2="12" y2="19"></line>
+              <line x1="8.8" y1="19.4" x2="15.2" y2="19.4"></line>
+              <circle cx="20" cy="4.6" r="2.3" fill="#4ade80" stroke="#ffffff" stroke-width="0.8"></circle>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title">교무실ON</div>
+            <div class="brand-subtitle">교원 업무 경감</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 사이드바 본문 (아코디언 트리 메뉴) -->
+      <div class="sidebar-body">
+
+        <!-- 대시보드 트리 노드 -->
+        <ul class="nav-tree" style="margin-bottom: 12px;">
+          <li class="tree-node expanded" id="dashTreeNode">
+            <button class="tree-item-btn active" id="navDashboardMainBtn">
+              <div class="tree-left">
+                <span class="tree-icon">🏠</span>
+                <span>대시보드 홈</span>
+              </div>
+              <div class="tree-right">
+                <span class="nav-chevron">▶</span>
+              </div>
+            </button>
+            <!-- 대시보드 하위 메뉴 -->
+            <ul class="nav-submenu">
+              <li><button class="sub-nav-btn active" data-scroll="calendarSection">📅 월별 학사 일정 (달력)</button></li>
+              <li><button class="sub-nav-btn" data-scroll="noticesSection">📢 부서별 전달 내용</button></li>
+              <li><button class="sub-nav-btn" data-scroll="allProgramsSection">📂 프로그램 전체 목록</button></li>
+            </ul>
+          </li>
+        </ul>
+
+        <!-- 학교 10개 부서 아코디언 트리 목록 -->
+        <div class="nav-section-title">학교 10개 부서별 메뉴</div>
+        <ul class="nav-tree" id="departmentTreeList">
+          <!-- JS 동적 생성: 부서 클릭 시 하위 프로그램 목록 전개 -->
+        </ul>
+
+      </div>
+
+      <!-- 사이드바 하단 유틸리티 -->
+      <div class="sidebar-footer">
+        <button class="sidebar-util-btn accent-warn" id="openAnnualHubBtn" title="신학년도 인수인계 총괄 센터">
+          <span>🌸</span>
+          <span style="flex:1; text-align:left;">신학년도 인수인계</span>
+          <span class="badge-annual-warn" id="annualCounter">6</span>
+        </button>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+          <button class="sidebar-util-btn" id="themeToggleBtn" title="다크/라이트 모드">
+            <span id="themeIcon">🌙</span>
+            <span id="themeText">다크모드</span>
+          </button>
+          <button class="sidebar-util-btn" id="installAppBtn" title="웹 앱(PWA) 설치">
+            <span>📥</span>
+            <span>앱 설치</span>
+          </button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ==========================================================================
+         2. 우측 메인 영역
+         ========================================================================== -->
+    <div class="main-wrapper">
+
+      <!-- 상단 바 -->
+      <header class="top-bar">
+        <div class="breadcrumb-box">
+          <button class="sidebar-toggle-btn" id="sidebarToggleBtn" type="button" title="메뉴 접기/펼치기" aria-label="메뉴 접기/펼치기">☰</button>
+          <span id="breadcrumbRoot" style="cursor:pointer;" onclick="showDashboardHome()">홈</span>
+          <span>&rsaquo;</span>
+          <span class="breadcrumb-dept" id="breadcrumbDept">대시보드</span>
+        </div>
+
+        <div class="top-bar-right">
+          <div class="program-view-tools" id="programViewTools">
+            <button class="top-action-btn" id="openProgramNewWindowBtn" type="button">↗ 새 창</button>
+            <button class="top-action-btn close" id="closeProgramViewBtn" type="button">✕ 닫기</button>
+          </div>
+          <div class="today-calendar-badge">
+            <span>📅</span>
+            <span id="todayDateStr">2026학년도 2학기</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- 메인 콘텐츠 영역 -->
+      <main class="content-area">
+
+        <!-- ====================================================================
+             VIEW 1: 대시보드 메인 화면
+             ==================================================================== -->
+        <div id="dashboardView">
+
+          <!-- 1. 월별 학사 일정 안내 (달력 형태) -->
+          <section class="calendar-card" id="calendarSection">
+            <div class="cal-header-bar">
+              <div class="cal-title-group">
+                <h2 class="cal-main-title">
+                  <span>📅</span>
+                  <span id="calCurrentMonthTitle">2026년 9월 학사 일정 달력</span>
+                </h2>
+                <span class="badge badge-dept">학교 주요 일정</span>
+                <span class="cal-sync-status" id="calSyncStatus"></span>
+              </div>
+
+              <div class="cal-header-actions">
+                <button type="button" class="cal-admin-btn" id="openCalendarAdminBtn" title="학사일정 추가·수정·삭제 (권한 필요)">✏️ 학사일정 관리</button>
+                <!-- 월 전환 내비게이션 -->
+                <div class="cal-month-nav" id="calMonthNav">
+                  <!-- JS 동적 생성: 이전 / 이번 달 / 다음 -->
+                </div>
+              </div>
+            </div>
+
+            <!-- 요일 헤더 -->
+            <div class="cal-grid" style="margin-bottom: 6px;">
+              <div class="cal-weekday-header sun">일</div>
+              <div class="cal-weekday-header">월</div>
+              <div class="cal-weekday-header">화</div>
+              <div class="cal-weekday-header">수</div>
+              <div class="cal-weekday-header">목</div>
+              <div class="cal-weekday-header">금</div>
+              <div class="cal-weekday-header sat">토</div>
+            </div>
+
+            <!-- 달력 일자별 그리드 -->
+            <div class="cal-grid" id="calendarGridContainer">
+              <!-- JS 동적 생성: 7열 달력 날짜 셀 및 행사 태그 -->
+            </div>
+          </section>
+
+          <!-- 2. 부서별 전달 내용 안내 -->
+          <section class="notices-section" id="noticesSection">
+            <div class="section-head-flex">
+              <div>
+                <h2 class="cal-main-title">
+                  <span>📢</span>
+                  <span>부서별 전달 내용 & 공지사항</span>
+                </h2>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">
+                  각 부서에서 교직원에게 전달하는 주요 안내 사항입니다.
+                </p>
+              </div>
+
+              <!-- 부서 필터 칩 -->
+              <div class="dept-notice-chips" id="noticeDeptChips">
+                <button class="notice-chip-btn active" data-dept="all">전체 부서</button>
+                <button class="notice-chip-btn" data-dept="교무기획부">교무기획부</button>
+                <button class="notice-chip-btn" data-dept="3학년부">3학년부</button>
+                <button class="notice-chip-btn" data-dept="미래교육정보부">미래교육정보부</button>
+                <button class="notice-chip-btn" data-dept="교육과정부">교육과정부</button>
+              </div>
+            </div>
+
+            <div class="notice-grid" id="noticesContainer">
+              <!-- JS 동적 생성 -->
+            </div>
+          </section>
+
+          <!-- 3. 프로그램 전체 목록 (28개) -->
+          <section class="all-programs-section" id="allProgramsSection">
+            <div class="program-filter-bar">
+              <div>
+                <h2 class="cal-main-title">
+                  <span>📂</span>
+                  <span>프로그램 전체 목록</span>
+                </h2>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">
+                  선생님들이 제작한 학교 업무 및 수업 지원 도구를 한눈에 확인하고 바로 실행할 수 있습니다.
+                </p>
+              </div>
+
+              <!-- 분류 탭 -->
+              <div class="category-tab-group" id="progFilterTabs">
+                <button class="cat-tab-btn active" data-filter="all" id="tabBtnAll">전체</button>
+                <button class="cat-tab-btn" data-filter="work" id="tabBtnWork">💼 업무용</button>
+                <button class="cat-tab-btn" data-filter="study" id="tabBtnStudy">🎓 학습용</button>
+                <button class="cat-tab-btn" data-filter="annualReset" id="tabBtnReset" style="color:#d97706;">⚠️ 신학년도 세팅
+                  필요</button>
+              </div>
+            </div>
+
+            <!-- 검색바 -->
+            <div style="margin-bottom: 20px;">
+              <input type="text" id="programSearchInput" class="top-search-input"
+                placeholder="프로그램명, 제작교사, 부서명, 기능 키워드로 실시간 검색..." style="max-width: 450px; padding: 10px 18px;">
+            </div>
+
+            <!-- 28개 프로그램 그리드 -->
+            <div class="programs-28-grid" id="programsGridContainer">
+              <!-- JS 동적 생성 -->
+            </div>
+          </section>
+
+        </div>
+
+        <!-- ====================================================================
+             VIEW 2: 부서별 메인 화면
+             ==================================================================== -->
+        <div id="departmentView" style="display: none;">
+
+          <!-- 1) 각 부서 업무 안내 배너 및 분장표 -->
+          <section class="dept-intro-banner">
+            <div class="dept-intro-top">
+              <div class="dept-intro-icon" id="deptIconEl">📋</div>
+              <div>
+                <h1 class="dept-intro-title" id="deptTitleEl">교무기획부</h1>
+                <p class="dept-intro-desc" id="deptDescEl">학사일정 총괄, 지필·수행평가 관리 및 교무 행정 총괄</p>
+              </div>
+            </div>
+
+            <!-- 상세 담당 업무(계) 분장표 그리드 -->
+            <div style="font-weight: 800; font-size: 0.95rem; margin-bottom: 10px; color: var(--text-main);">
+              🏛️ 부서 주요 담당 업무 분장 (계별 역할 안내)
+            </div>
+            <div class="work-summary-grid" id="deptWorkSummaryGrid">
+              <!-- JS 동적 생성: 고사계, 평가계, 학사일정계 등 -->
+            </div>
+
+            <!-- 신학년도 인수인계 팁 -->
+            <div class="dept-handover-tip-box" id="deptHandoverTipBox">
+              <span>💡</span>
+              <span id="deptHandoverTipText">신학년도 인수인계 가이드</span>
+            </div>
+          </section>
+
+          <!-- 2) 해당 부서 소속 프로그램 목록 안내 -->
+          <section>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <h2 class="cal-main-title">
+                <span>💻</span>
+                <span id="deptProgramSectionTitle">교무기획부 소속 프로그램 목록</span>
+              </h2>
+              <span class="badge badge-work" id="deptProgramCountBadge">총 7개</span>
+            </div>
+
+            <div class="dept-programs-container" id="deptProgramsContainer">
+              <!-- JS 동적 생성: 해당 부서 프로그램 카드들 -->
+            </div>
+          </section>
+
+        </div>
+
+        <!-- ====================================================================
+             VIEW 3: 포털 내부 프로그램 실행 화면
+             ==================================================================== -->
+        <section id="embeddedProgramView" class="embedded-program-view" aria-label="프로그램 실행 화면">
+          <iframe id="embeddedProgramFrame" title="교무실ON 프로그램 실행" src="about:blank"></iframe>
+        </section>
+
+      </main>
+
+    </div>
+
+  </div>
+
+  <!-- ==========================================================================
+       3. 모달 팝업들
+       ========================================================================== -->
+
+  <!-- 신학년도 인수인계 총괄 대시보드 모달 -->
+  <div class="modal-overlay" id="annualHubModal">
+    <div class="modal-dialog modal-dialog-large">
+      <div class="modal-header">
+        <h2 class="modal-title">🌸 2026 신학년도 초기 세팅 체크리스트</h2>
+        <button class="modal-close-btn" id="closeAnnualHubBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:18px;">
+          매년 2~3월 교무 분장 변경 시 담당 선생님들이 원활하게 프로그램을 인수인계받고 초기값을 갱신할 수 있도록 준비된 총괄 현황표입니다.
+        </p>
+        <div class="hub-table-wrapper">
+          <table class="hub-table">
+            <thead>
+              <tr>
+                <th style="width: 140px;">부서 / 역할</th>
+                <th>프로그램명</th>
+                <th style="width: 180px;">인수인계 대상 (누가?)</th>
+                <th style="width: 130px;">세팅 시기</th>
+                <th style="width: 100px; text-align: center;">가이드</th>
+              </tr>
+            </thead>
+            <tbody id="annualHubTableBody">
+              <!-- JS 동적 생성 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-manual-secondary" onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>
+        <button class="btn-launch-primary" id="confirmAnnualHubBtn">확인 완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 신학년도 프로그램별 개별 인수인계 모달 -->
+  <div class="modal-overlay" id="handoverModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalHandoverTitle">신학년도 인수인계 가이드</h2>
+        <button class="modal-close-btn" id="closeHandoverModalBtn">&times;</button>
+      </div>
+      <div class="modal-body" id="modalHandoverBody">
+        <!-- JS 동적 주입 -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-launch-primary" id="modalHandoverCloseBtn">확인 완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 공지사항 상세 모달 -->
+  <div class="modal-overlay" id="noticeModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title" id="noticeModalTitle">공지사항 상세</h2>
+        <button class="modal-close-btn" id="closeNoticeModalBtn">&times;</button>
+      </div>
+      <div class="modal-body" id="noticeModalBody">
+        <!-- JS 동적 주입 -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-launch-primary" id="confirmNoticeModalBtn">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>

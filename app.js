@@ -11,6 +11,10 @@
 const PORTAL_API_URL = 'https://script.google.com/macros/s/AKfycbxFCDXHt_CeflpQbnBAGWRGY5vc6ZdLHsX3QOXpMRKAJn8cgeuB9T39XThkfYq2R5aT-w/exec';
 const CALENDAR_CACHE_KEY = 'gyomusilon_calendar_v1';
 
+// 학사일정 입력 화면 (관리자용 GAS 웹 앱, "yanggok.hs.kr 내 사용자"로 배포)
+// 비워두면 달력의 "학사일정 관리" 버튼이 보이지 않습니다.
+const CALENDAR_ADMIN_URL = 'https://script.google.com/a/macros/yanggok.hs.kr/s/AKfycbwVnE2Y-nyeGWnQ6HdVAgD2bWECqoXoi9vCm1PinzqQpV48zCSf8U9QgH81XfsA-z0ueA/exec';
+
 document.addEventListener('DOMContentLoaded', () => {
   // 상태 변수
   let currentMonth = toYearMonth(new Date());
@@ -231,6 +235,29 @@ document.addEventListener('DOMContentLoaded', () => {
     calendarEvents = loadInitialCalendarEvents();
     renderCalendar();
     refreshCalendarFromSheet();
+    initCalendarAdmin();
+  }
+
+  // 학사일정 관리 버튼 → 포털 안에서 입력 화면 열기
+  function initCalendarAdmin() {
+    const btn = document.getElementById('openCalendarAdminBtn');
+    if (!btn) return;
+    if (!CALENDAR_ADMIN_URL) {
+      btn.style.display = 'none';
+      return;
+    }
+    btn.addEventListener('click', () => {
+      openEmbeddedProgram({ id: 'calendar-admin', title: '학사일정 관리', launchUrl: CALENDAR_ADMIN_URL });
+    });
+
+    // 입력 화면에서 저장·삭제하면 알려줌 → 달력을 시트에서 다시 불러옴
+    window.addEventListener('message', (e) => {
+      let fromGoogle = false;
+      try { fromGoogle = /(^|\.)googleusercontent\.com$/.test(new URL(e.origin).hostname); } catch (err) { /* origin 없음 */ }
+      if (fromGoogle && e.data && e.data.source === 'gyomusilon' && e.data.type === 'calendar-updated') {
+        refreshCalendarFromSheet();
+      }
+    });
   }
 
   function renderCalendar() {
@@ -674,6 +701,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function leaveEmbeddedProgram() {
+    if (activeEmbeddedProgram && activeEmbeddedProgram.id === 'calendar-admin') {
+      refreshCalendarFromSheet();
+    }
     const view = document.getElementById('embeddedProgramView');
     const frame = document.getElementById('embeddedProgramFrame');
     if (view) view.style.display = 'none';
