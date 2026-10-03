@@ -16,7 +16,8 @@ const CALENDAR_ADMIN_URL = GYOMUSIL_APP_URL;
 const BRIDGE_URL = GYOMUSIL_APP_URL + '?view=bridge';
 const CONNECT_URL = GYOMUSIL_APP_URL + '?view=connect';
 const PORTAL_CACHE_KEY = 'gyomusilon_portal_v2';   // 이 컴퓨터에 저장해 두는 자료
-const BRIDGE_TIMEOUT_MS = 45000;                   // 이 시간 안에 학교 계정 확인이 안 되면 로그인 안내
+const BRIDGE_TIMEOUT_MS = 45000;                   // 확인 창이 아예 안 열릴 때 최대 대기 시간
+const BRIDGE_AFTER_LOAD_MS = 8000;                 // 확인 창이 열렸는데 학교 계정 신호가 없으면 이만큼만 더 기다림
 
 // 시트에서 받아 오는 자료 (처음엔 비어 있음)
 let DEPARTMENTS = [];
@@ -280,6 +281,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function initPortalData() {
     try { localStorage.removeItem('gyomusilon_calendar_v1'); } catch (e) { /* 예전 저장 자료 정리 */ }
     window.addEventListener('message', onBridgeMessage);
+    if (!document.getElementById('loginGate')) {
+      console.error('[교무실ON] index.html이 예전 버전입니다. 교무실ON.html 내용으로 바꿔 주세요.');
+      return;
+    }
     document.getElementById('gateConnectBtn').addEventListener('click', openConnectWindow);
     document.getElementById('gateRetryBtn').addEventListener('click', () => { showGate('checking'); loadBridge(); });
     document.getElementById('accountChip').addEventListener('click', confirmForget);
@@ -302,6 +307,13 @@ document.addEventListener('DOMContentLoaded', () => {
     bridgeFrame.className = 'bridge-frame';
     bridgeFrame.title = '교무실ON 학교 계정 확인';
     bridgeFrame.setAttribute('aria-hidden', 'true');
+    // 창이 열렸는데(load) 학교 계정 신호가 없다 = 구글 로그인 화면이나 접근 거부 화면 → 금방 안내
+    // (학교 계정이면 창이 열린 뒤 1~3초 안에 신호가 옴. 구글 서버가 느린 시간은 창이 열리기 전이라 영향 없음)
+    bridgeFrame.addEventListener('load', () => {
+      if (bridgeReady) return;
+      clearTimeout(bridgeTimer);
+      bridgeTimer = setTimeout(onBridgeTimeout, BRIDGE_AFTER_LOAD_MS);
+    });
     bridgeFrame.src = BRIDGE_URL + '&t=' + Date.now();
     document.body.appendChild(bridgeFrame);
     clearTimeout(bridgeTimer);
