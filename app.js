@@ -486,6 +486,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cfOk').textContent = opt.ok;
     document.getElementById('cfIcon').textContent = opt.danger ? '⚠️' : '❓';
     document.getElementById('cfPanel').classList.toggle('danger', !!opt.danger);
+    document.getElementById('cfIcon').textContent = opt.info ? '💡' : (opt.danger ? '⚠️' : '❓');
+    document.getElementById('cfCancel').style.display = opt.info ? 'none' : '';
     document.getElementById('confirmBox').classList.add('show');
     setTimeout(() => document.getElementById(opt.danger ? 'cfCancel' : 'cfOk').focus(), 0);
   }
@@ -1046,6 +1048,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ==========================================================================
+  // 앱 설치 (PWA): 화면 틀만 설치되고 자료는 매번 학교 계정 확인 후 받음
+  // ==========================================================================
+  function initInstall() {
+    const installBtn = document.getElementById('installAppBtn');
+    let deferredPrompt = null;
+    const isInstalled = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch((err) => console.warn('[교무실ON] 앱 설치 준비 실패:', err));
+    }
+    if (!installBtn) return;
+    if (isInstalled()) installBtn.style.display = 'none'; // 이미 앱으로 열었으면 버튼 숨김
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e; // 버튼을 누를 때 설치 창을 띄우기 위해 보관
+    });
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+      installBtn.style.display = 'none';
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const choice = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        if (choice && choice.outcome === 'accepted') installBtn.style.display = 'none';
+        return;
+      }
+      // 설치 창을 바로 띄울 수 없을 때(이미 설치됨, 크롬이 아직 준비 안 됨, 다른 브라우저 등) 방법 안내
+      ask({
+        title: '교무실ON을 앱으로 설치하는 방법',
+        body: '<b>크롬·엣지</b>: 주소창 오른쪽의 <b>설치 아이콘(⊕ 또는 컴퓨터 모양)</b>을 누르거나,\n오른쪽 위 <b>⋮ 메뉴 › 전송, 저장, 공유 › 페이지를 앱으로 설치</b>를 누르세요.\n\n이미 설치했다면 바탕화면이나 시작 메뉴의 <b>교무실ON</b> 아이콘으로 열면 됩니다.',
+        ok: '확인',
+        info: true
+      }, null);
+    });
+  }
+
   function setupGlobalEvents() {
     const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
     if (sidebarToggleBtn) {
@@ -1109,12 +1152,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // PWA 앱 설치 버튼
-    const installBtn = document.getElementById('installAppBtn');
-    if (installBtn) {
-      installBtn.addEventListener('click', () => {
-        alert('💡 브라우저 주소창 우측의 [설치] 버튼을 클릭하거나, Ctrl+D로 즐겨찾기에 등록하시면 바로가기 앱처럼 편리하게 사용하실 수 있습니다.');
-      });
-    }
+    initInstall();
   }
 });

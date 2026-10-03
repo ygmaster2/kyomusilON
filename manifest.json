@@ -1,0 +1,25 @@
+{
+  "name": "교무실ON",
+  "short_name": "교무실ON",
+  "description": "양곡고 선생님 업무 포털 — 학사일정, 부서 업무, 업무 프로그램을 한곳에서",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
