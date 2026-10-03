@@ -292,6 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('gateRetryBtn').addEventListener('click', () => { showGate('checking'); loadBridge(); });
     document.getElementById('accountChip').addEventListener('click', confirmForget);
     document.getElementById('refreshBtn').addEventListener('click', refreshPortalData);
+    document.getElementById('adminMenuBtn').addEventListener('click', openAdminMenu);
 
     const cached = readPortalCache();
     if (cached) {
@@ -322,6 +323,29 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(bridgeFrame);
     clearTimeout(bridgeTimer);
     bridgeTimer = setTimeout(onBridgeTimeout, BRIDGE_TIMEOUT_MS);
+  }
+
+  // 🗂️ 관리: 내 권한으로 열 수 있는 관리 화면을 골라 포털 안에서 열기
+  function openAdminMenu() {
+    const items = (portalUser && portalUser.menu) || [];
+    if (!items.length) return;
+    ask({
+      title: '어떤 관리 화면을 열까요?',
+      body: `<div class="admin-menu-list">${items.map((it) =>
+        `<button type="button" class="admin-menu-item" data-view="${escapeHtml(it.view)}">` +
+        `<span class="ami-icon">${escapeHtml(it.icon)}</span><span><b>${escapeHtml(it.title)}</b>` +
+        `<small>${escapeHtml(it.desc || '')}</small></span></button>`).join('')}</div>`,
+      ok: '닫기',
+      info: true
+    });
+    document.getElementById('cfIcon').textContent = '🗂️';
+    document.querySelectorAll('.admin-menu-item').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const it = items.find((x) => x.view === btn.dataset.view);
+        closeAsk(false);
+        if (it) openEmbeddedProgram({ id: 'admin-' + it.view, title: it.title, launchUrl: `${GYOMUSIL_APP_URL}?view=${encodeURIComponent(it.view)}` });
+      });
+    });
   }
 
   // 🔄 새로고침: 화면은 그대로 두고 자료만 다시 받음
@@ -429,6 +453,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const refreshBtn = document.getElementById('refreshBtn');
     if (refreshBtn) refreshBtn.style.display = portalUser ? '' : 'none';
+    const menuBtn = document.getElementById('adminMenuBtn');
+    if (menuBtn) menuBtn.style.display = portalUser && portalUser.menu && portalUser.menu.length ? '' : 'none';
 
     const chip = document.getElementById('accountChip');
     if (chip) {
@@ -976,7 +1002,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function leaveEmbeddedProgram() {
-    if (activeEmbeddedProgram && (activeEmbeddedProgram.id === 'calendar-admin' || activeEmbeddedProgram.id === 'notice-admin')) {
+    if (activeEmbeddedProgram && /^(calendar-admin|notice-admin|admin-)/.test(activeEmbeddedProgram.id)) {
       loadBridge();
     }
     const view = document.getElementById('embeddedProgramView');
