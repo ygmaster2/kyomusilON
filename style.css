@@ -1497,3 +1497,10 @@ body.program-mode .content-area {
 .btn-locked:hover { transform: none !important; }
 .btn-admin-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid #c4b5fd; background: #f5f3ff; color: #6d28d9; font-size: 0.82rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
 .btn-admin-secondary:hover { background: #ede9fe; }
+
+/* 🔄 새로고침 버튼 (2026-10-04) */
+.refresh-btn { border: 1px solid var(--border-light); background: var(--bg-card); color: var(--text-secondary); border-radius: 999px;
+  padding: 6px 12px; font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.refresh-btn:hover { border-color: var(--primary); color: var(--primary); }
+.refresh-btn:disabled { opacity: 0.7; cursor: default; }
+.refresh-btn.spinning { color: var(--primary); }

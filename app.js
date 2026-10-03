@@ -291,6 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('gateConnectBtn').addEventListener('click', openConnectWindow);
     document.getElementById('gateRetryBtn').addEventListener('click', () => { showGate('checking'); loadBridge(); });
     document.getElementById('accountChip').addEventListener('click', confirmForget);
+    document.getElementById('refreshBtn').addEventListener('click', refreshPortalData);
 
     const cached = readPortalCache();
     if (cached) {
@@ -323,6 +324,27 @@ document.addEventListener('DOMContentLoaded', () => {
     bridgeTimer = setTimeout(onBridgeTimeout, BRIDGE_TIMEOUT_MS);
   }
 
+  // 🔄 새로고침: 화면은 그대로 두고 자료만 다시 받음
+  let refreshing = false;
+  function refreshPortalData() {
+    if (refreshing) return;
+    refreshing = true;
+    const btn = document.getElementById('refreshBtn');
+    if (btn) { btn.disabled = true; btn.classList.add('spinning'); btn.textContent = '🔄 받는 중…'; }
+    setCalendarStatus('자료를 새로 받는 중…');
+    loadBridge();
+  }
+  function endRefresh(ok) {
+    if (!refreshing) return;
+    refreshing = false;
+    const btn = document.getElementById('refreshBtn');
+    if (!btn) return;
+    btn.disabled = false;
+    btn.classList.remove('spinning');
+    btn.textContent = ok ? '✅ 최신 자료' : '🔄 새로고침';
+    if (ok) setTimeout(() => { if (!refreshing) btn.textContent = '🔄 새로고침'; }, 2000);
+  }
+
   function isGoogleOrigin(origin) {
     try { return /(^|\.)googleusercontent\.com$/.test(new URL(origin).hostname); } catch (e) { return false; }
   }
@@ -346,14 +368,17 @@ document.addEventListener('DOMContentLoaded', () => {
       setCalendarStatus(`학교 계정 연결됨 · ${formatStamp(Date.now())}`);
       hideGate();
       if (bridgeFrame) { bridgeFrame.remove(); bridgeFrame = null; }
+      endRefresh(true);
     } else if (msg.type === 'portal-error') {
       clearTimeout(bridgeTimer);
+      endRefresh(false);
       lockPortal(msg.message);
     }
   }
 
   function onBridgeTimeout() {
     if (bridgeFrame) { bridgeFrame.remove(); bridgeFrame = null; }
+    endRefresh(false);
     if (navigator.onLine === false && readPortalCache()) {
       setCalendarStatus('인터넷 연결 없음 · 저장된 자료 표시 중');
       return;
@@ -401,6 +426,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (adminBtn) adminBtn.style.display = portalUser && portalUser.canEditCalendar ? '' : 'none';
     const noticeBtn = document.getElementById('openNoticeAdminBtn');
     if (noticeBtn) noticeBtn.style.display = portalUser && portalUser.noticeDepts && portalUser.noticeDepts.length ? '' : 'none';
+
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) refreshBtn.style.display = portalUser ? '' : 'none';
 
     const chip = document.getElementById('accountChip');
     if (chip) {
