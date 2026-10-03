@@ -1481,3 +1481,9 @@ body.program-mode .content-area {
 .cf-body b { color: var(--text-main); }
 .cf-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 20px 18px; }
 .cf.danger #cfOk { background: #dc2626; border-color: #dc2626; color: #fff; }
+
+/* 부서공지: 고정·링크·공지 쓰기 버튼 (2026-10-04) */
+.notice-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.notice-card.pinned { border-color: var(--primary-border); box-shadow: inset 3px 0 0 var(--primary), var(--shadow-sm); }
+.notice-pin { margin-right: 6px; font-size: 0.9rem; }
+.notice-link { color: var(--primary); text-decoration: underline; word-break: break-all; }

@@ -12,7 +12,8 @@
 //   .../exec?view=connect  → [학교 계정으로 연결] 버튼이 여는 작은 창
 // ============================================================================
 const GYOMUSIL_APP_URL = 'https://script.google.com/a/macros/yanggok.hs.kr/s/AKfycbwVnE2Y-nyeGWnQ6HdVAgD2bWECqoXoi9vCm1PinzqQpV48zCSf8U9QgH81XfsA-z0ueA/exec';
-const CALENDAR_ADMIN_URL = GYOMUSIL_APP_URL;
+const CALENDAR_ADMIN_URL = GYOMUSIL_APP_URL + '?view=calendar';
+const NOTICE_ADMIN_URL = GYOMUSIL_APP_URL + '?view=notice';
 const BRIDGE_URL = GYOMUSIL_APP_URL + '?view=bridge';
 const CONNECT_URL = GYOMUSIL_APP_URL + '?view=connect';
 const PORTAL_CACHE_KEY = 'gyomusilon_portal_v2';   // 이 컴퓨터에 저장해 두는 자료
@@ -328,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isGoogleOrigin(e.origin) || !e.data) return;
     const msg = e.data;
     // 학사일정 입력 화면에서 저장·삭제 → 자료 다시 받기
-    if (msg.source === 'gyomusilon' && msg.type === 'calendar-updated') { loadBridge(); return; }
+    if (msg.source === 'gyomusilon' && (msg.type === 'calendar-updated' || msg.type === 'notice-updated')) { loadBridge(); return; }
     if (msg.source !== 'gyomusilon-bridge') return;
 
     if (msg.type === 'bridge-ready') {
@@ -396,6 +397,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const adminBtn = document.getElementById('openCalendarAdminBtn');
     if (adminBtn) adminBtn.style.display = portalUser && portalUser.canEditCalendar ? '' : 'none';
+    const noticeBtn = document.getElementById('openNoticeAdminBtn');
+    if (noticeBtn) noticeBtn.style.display = portalUser && portalUser.noticeDepts && portalUser.noticeDepts.length ? '' : 'none';
 
     const chip = document.getElementById('accountChip');
     if (chip) {
@@ -606,7 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
               title: `[학사 일정] ${ev.title}`,
               dept: ev.dept,
               date: `${data.year}.${data.month}.${day}`,
-              content: `부서: ${ev.dept}<br>일정 내용: ${ev.title}<br>구분: ${ev.isImportant ? '주요 학사 일정 (필독)' : '일반 학사 일정'}`
+              contentHtml: `부서: ${escapeHtml(ev.dept)}<br>일정 내용: ${escapeHtml(ev.title)}<br>구분: ${ev.isImportant ? '주요 학사 일정 (필독)' : '일반 학사 일정'}`
             });
           });
           eventsWrap.appendChild(tag);
@@ -651,21 +654,53 @@ document.addEventListener('DOMContentLoaded', () => {
   function initNotices() {
     renderNotices();
 
-    // 부서 필터 칩 클릭 이벤트
-    const chipBtns = document.querySelectorAll('.notice-chip-btn');
-    chipBtns.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        chipBtns.forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
+    // 부서 필터 칩 (칩은 공지가 있는 부서로 자동 생성)
+    const chips = document.getElementById('noticeDeptChips');
+    if (chips) {
+      chips.addEventListener('click', (e) => {
+        const btn = e.target.closest('.notice-chip-btn');
+        if (!btn) return;
         currentNoticeFilter = btn.getAttribute('data-dept');
         renderNotices();
       });
+    }
+
+    // 공지 쓰기 버튼 → 포털 안에서 부서공지 화면 열기 (쓸 수 있는 부서가 있는 선생님에게만 보임)
+    const noticeBtn = document.getElementById('openNoticeAdminBtn');
+    if (noticeBtn) {
+      noticeBtn.style.display = 'none';
+      noticeBtn.addEventListener('click', () => {
+        openEmbeddedProgram({ id: 'notice-admin', title: '부서공지 관리', launchUrl: NOTICE_ADMIN_URL });
+      });
+    }
+  }
+
+  function renderNoticeChips() {
+    const chips = document.getElementById('noticeDeptChips');
+    if (!chips) return;
+    const order = DEPARTMENTS.map((d) => d.name);
+    const depts = [...new Set(NOTICE_ITEMS.map((n) => n.dept))]
+      .sort((a, b) => (order.indexOf(a) === -1 ? 999 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 999 : order.indexOf(b)));
+    if (currentNoticeFilter !== 'all' && depts.indexOf(currentNoticeFilter) === -1) currentNoticeFilter = 'all';
+    chips.innerHTML = ['all', ...depts].map((d) =>
+      `<button class="notice-chip-btn${d === currentNoticeFilter ? ' active' : ''}" data-dept="${escapeHtml(d)}">${d === 'all' ? '전체 부서' : escapeHtml(d)}</button>`
+    ).join('');
+  }
+
+  // 공지 내용: 글자는 그대로 보이게(태그 무력화) + https:// 주소는 링크로
+  function noticeHtml(text) {
+    return escapeHtml(text).replace(/https?:\/\/[^\s<]+/g, (url) => {
+      const cut = url.search(/&quot;|&#39;|&gt;/);           // 따옴표·괄호 앞에서 주소 끝
+      const clean = (cut >= 0 ? url.slice(0, cut) : url).replace(/[).,;!?]+$/, '');
+      const rest = url.slice(clean.length);
+      return `<a href="${clean}" target="_blank" rel="noopener noreferrer" class="notice-link">${clean}</a>${rest}`;
     });
   }
 
   function renderNotices() {
     const container = document.getElementById('noticesContainer');
     if (!container) return;
+    renderNoticeChips();
 
     container.innerHTML = '';
 
@@ -684,7 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     filtered.forEach((notice) => {
       const card = document.createElement('div');
-      card.className = 'notice-card';
+      card.className = 'notice-card' + (notice.pinned ? ' pinned' : '');
 
       let badgeClass = 'badge-info';
       if (notice.badge === '중요') badgeClass = 'badge-warn';
@@ -693,14 +728,14 @@ document.addEventListener('DOMContentLoaded', () => {
       card.innerHTML = `
         <div>
           <div class="notice-card-top">
-            <span class="badge ${badgeClass}">${notice.badge}</span>
-            <span style="font-size:0.76rem; color:var(--text-muted);">${notice.date}</span>
+            <span>${notice.pinned ? '<span class="notice-pin" title="맨 위 고정">📌</span>' : ''}<span class="badge ${badgeClass}">${escapeHtml(notice.badge)}</span></span>
+            <span style="font-size:0.76rem; color:var(--text-muted);">${escapeHtml(notice.date)}</span>
           </div>
-          <div class="notice-card-title">${notice.title}</div>
-          <div class="notice-card-desc">${notice.content}</div>
+          <div class="notice-card-title">${escapeHtml(notice.title)}</div>
+          <div class="notice-card-desc">${escapeHtml(notice.content)}</div>
         </div>
         <div class="notice-card-footer">
-          <span>🏛️ ${notice.dept}</span>
+          <span>🏛️ ${escapeHtml(notice.dept)}</span>
           <span style="color:var(--primary); font-weight:600;">자세히 보기 &rsaquo;</span>
         </div>
       `;
@@ -883,7 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function leaveEmbeddedProgram() {
-    if (activeEmbeddedProgram && activeEmbeddedProgram.id === 'calendar-admin') {
+    if (activeEmbeddedProgram && (activeEmbeddedProgram.id === 'calendar-admin' || activeEmbeddedProgram.id === 'notice-admin')) {
       loadBridge();
     }
     const view = document.getElementById('embeddedProgramView');
@@ -1002,12 +1037,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('noticeModalTitle').textContent = notice.title;
     document.getElementById('noticeModalBody').innerHTML = `
       <div style="display:flex; gap:12px; margin-bottom:14px; font-size:0.85rem; color:var(--text-muted); border-bottom:1px solid var(--border-light); padding-bottom:10px;">
-        <span><strong>부서:</strong> ${notice.dept}</span>
-        <span><strong>일자:</strong> ${notice.date}</span>
+        <span><strong>부서:</strong> ${escapeHtml(notice.dept)}</span>
+        <span><strong>일자:</strong> ${escapeHtml(notice.date)}</span>
+        ${notice.author ? `<span><strong>작성:</strong> ${escapeHtml(notice.author)}</span>` : ''}
       </div>
-      <div style="line-height:1.7; font-size:0.95rem; color:var(--text-main); white-space:pre-line;">
-        ${notice.content}
-      </div>
+      <div style="line-height:1.7; font-size:0.95rem; color:var(--text-main); white-space:pre-line; overflow-wrap:anywhere;">${notice.contentHtml || noticeHtml(notice.content)}</div>
     `;
 
     modal.classList.add('show');

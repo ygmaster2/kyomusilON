@@ -10,7 +10,7 @@
   <!-- Pretendard Web Font -->
   <link rel="stylesheet" as="style" crossorigin
     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-  <link rel="stylesheet" href="style.css?v=20261003c">
+  <link rel="stylesheet" href="style.css?v=20261004a">
   <!-- 앱 설치(PWA) -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
@@ -189,12 +189,11 @@
               </div>
 
               <!-- 부서 필터 칩 -->
-              <div class="dept-notice-chips" id="noticeDeptChips">
-                <button class="notice-chip-btn active" data-dept="all">전체 부서</button>
-                <button class="notice-chip-btn" data-dept="교무기획부">교무기획부</button>
-                <button class="notice-chip-btn" data-dept="3학년부">3학년부</button>
-                <button class="notice-chip-btn" data-dept="미래교육정보부">미래교육정보부</button>
-                <button class="notice-chip-btn" data-dept="교육과정부">교육과정부</button>
+              <div class="notice-head-actions">
+                <button type="button" class="cal-admin-btn" id="openNoticeAdminBtn" style="display:none" title="우리 부서 공지 쓰기·고치기 (교사명단 부서 또는 권한 필요)">✏️ 공지 쓰기</button>
+                <div class="dept-notice-chips" id="noticeDeptChips">
+                  <button class="notice-chip-btn active" data-dept="all">전체 부서</button>
+                </div>
               </div>
             </div>
 
@@ -400,7 +399,7 @@
   </div>
 
   <!-- Scripts (자료는 data.js 없이 학교 계정 확인 후 시트에서 받아 옴) -->
-  <script src="app.js?v=20261003c"></script>
+  <script src="app.js?v=20261004a"></script>
 </body>
 
 </html>
