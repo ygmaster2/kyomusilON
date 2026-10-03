@@ -1487,3 +1487,13 @@ body.program-mode .content-area {
 .notice-card.pinned { border-color: var(--primary-border); box-shadow: inset 3px 0 0 var(--primary), var(--shadow-sm); }
 .notice-pin { margin-right: 6px; font-size: 0.9rem; }
 .notice-link { color: var(--primary); text-decoration: underline; word-break: break-all; }
+
+/* 프로그램 보기·관리 권한 (2026-10-04) */
+.badge-locked { background-color: #f1f5f9; color: #475569; }
+.badge-restricted { background-color: #fef3c7; color: #b45309; }
+.prog-card.locked { background-color: var(--bg-card-subtle, #f8fafc); }
+.prog-card.locked .prog-title { color: var(--text-muted); }
+.btn-locked { background: #e2e8f0 !important; color: #475569 !important; border-color: #e2e8f0 !important; box-shadow: none !important; cursor: pointer; }
+.btn-locked:hover { transform: none !important; }
+.btn-admin-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid #c4b5fd; background: #f5f3ff; color: #6d28d9; font-size: 0.82rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.btn-admin-secondary:hover { background: #ede9fe; }

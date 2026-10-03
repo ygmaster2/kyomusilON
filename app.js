@@ -106,11 +106,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const subLi = document.createElement('li');
         const subBtn = document.createElement('button');
         subBtn.className = 'sub-nav-btn';
-        subBtn.innerHTML = `${prog.category === 'work' ? '💼' : '🎓'} ${prog.title}`;
+        subBtn.innerHTML = `${prog.locked ? '🔒' : (prog.category === 'work' ? '💼' : '🎓')} ${escapeHtml(prog.title)}`;
         subBtn.title = prog.title;
         subBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (prog.launchType === 'EMBED') {
+          if (prog.locked) {
+            showLockedInfo(prog);
+          } else if (prog.launchType === 'EMBED') {
             openEmbeddedProgram(prog);
           } else {
             openDepartmentPage(dept.id, prog.id);
@@ -826,7 +828,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 공통 프로그램 카드 엘리먼트 생성기
   function createProgramCard(prog) {
     const card = document.createElement('div');
-    card.className = 'prog-card';
+    card.className = 'prog-card' + (prog.locked ? ' locked' : '');
 
     // 카테고리 뱃지
     const catBadge = prog.category === 'work'
@@ -843,8 +845,18 @@ document.addEventListener('DOMContentLoaded', () => {
       ? prog.tags.map((t) => `<span class="prog-sub-tag">#${t}</span>`).join('')
       : '';
 
+    // 보기·관리 권한 (서버가 선생님마다 정해서 보냄)
+    const accessBadge = prog.locked
+      ? `<span class="badge badge-locked" title="업무 담당자만 실행할 수 있어요">🔒 ${escapeHtml(prog.accessLabel || '업무담당자용')}</span>`
+      : (prog.restricted ? `<span class="badge badge-restricted" title="볼 수 있는 사람이 정해진 프로그램입니다">🔐 ${escapeHtml(prog.accessLabel)}</span>` : '');
+    const adminButton = prog.adminUrl
+      ? `<a href="${escapeHtml(prog.adminUrl)}" target="_blank" rel="noopener" class="btn-admin-secondary" title="관리·세팅 (권한 있는 선생님에게만 보임)"><span>⚙️ 관리</span></a>`
+      : '';
+
     const isEmbedded = prog.launchType === 'EMBED';
-    const launchButton = isEmbedded
+    const launchButton = prog.locked
+      ? `<button type="button" class="btn-launch-primary btn-locked" title="업무 담당자만 실행할 수 있어요"><span>🔒 담당자 전용</span></button>`
+      : isEmbedded
       ? `<button type="button" class="btn-launch-primary btn-embed-launch" data-embed-id="${prog.id}" title="포털 안에서 프로그램 실행"><span>🚀 여기서 실행</span></button>`
       : `<a href="${prog.launchUrl}" target="_blank" rel="noopener" class="btn-launch-primary" title="프로그램 실행"><span>🚀 실행하기</span></a>`;
     const manualButton = prog.manualFile
@@ -857,6 +869,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="prog-card-badges">
             <span class="badge badge-dept">${prog.department}</span>
             ${catBadge}
+            ${accessBadge}
             ${resetBadge}
           </div>
           <span class="prog-role-tag">${prog.roleTag}</span>
@@ -870,6 +883,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="prog-card-actions">
         ${launchButton}
         ${manualButton}
+        ${adminButton}
         ${prog.annualReset ? `
           <button class="btn-guide-warn" title="신학년도 인수인계 가이드 확인" data-reset-id="${prog.id}">
             <span>가이드</span>
@@ -877,6 +891,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ` : ''}
       </div>
     `;
+
+    const lockedBtn = card.querySelector('.btn-locked');
+    if (lockedBtn) lockedBtn.addEventListener('click', () => showLockedInfo(prog));
 
     const embedBtn = card.querySelector('.btn-embed-launch');
     if (embedBtn) {
@@ -897,7 +914,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // ========================================================================
   // 포털 내부 프로그램 실행 및 집중 모드
   // ========================================================================
+  // 잠긴 프로그램을 눌렀을 때 안내
+  function showLockedInfo(prog) {
+    ask({
+      title: '업무 담당자만 사용할 수 있는 프로그램이에요',
+      body: `<b>${escapeHtml(prog.title)}</b>${prog.department ? ` · ${escapeHtml(prog.department)}` : ''}\n` +
+        `${escapeHtml(prog.accessLabel || '업무담당자용')} 프로그램이라 담당자로 지정된 선생님만 열 수 있습니다.\n` +
+        `사용해야 한다면 ${escapeHtml(prog.department || '담당 부서')}나 교무실ON 관리자에게 권한을 요청해 주세요.`,
+      ok: '확인',
+      info: true
+    });
+  }
+
   function openEmbeddedProgram(prog) {
+    if (!prog || !prog.launchUrl || prog.locked) { if (prog && prog.locked) showLockedInfo(prog); return; }
     const view = document.getElementById('embeddedProgramView');
     const frame = document.getElementById('embeddedProgramFrame');
     if (!view || !frame) return;
@@ -971,7 +1001,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tr.innerHTML = `
         <td><strong>${prog.department}</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">${prog.roleTag}</span></td>
         <td>
-          <a href="${prog.launchUrl}" target="_blank" style="color:var(--primary); font-weight:700; text-decoration:none;">${prog.title}</a>
+          ${prog.locked ? `<span style="font-weight:700;">🔒 ${escapeHtml(prog.title)}</span>` : `<a href="${prog.launchUrl}" target="_blank" style="color:var(--primary); font-weight:700; text-decoration:none;">${prog.title}</a>`}
         </td>
         <td><span class="badge badge-reset" style="font-size:0.78rem;">${prog.resetRole}</span></td>
         <td>${prog.resetPeriod}<br><span style="font-size:0.75rem; color:var(--text-muted);">${prog.resetDifficulty}</span></td>
@@ -1014,12 +1044,13 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
 
       <div style="margin-top:20px; display:flex; gap:10px;">
-        <a href="${prog.launchUrl}" target="_blank" class="btn-launch-primary" style="flex:1;">
+        ${prog.locked ? `<div class="btn-launch-primary btn-locked" style="flex:1; cursor:default;">🔒 담당자 전용 프로그램</div>` : `<a href="${prog.launchUrl}" target="_blank" class="btn-launch-primary" style="flex:1;">
           🚀 프로그램 바로가기
-        </a>
-        <a href="${prog.manualFile}" target="_blank" class="btn-manual-secondary" style="flex:1;">
+        </a>`}
+        ${prog.manualFile ? `<a href="${prog.manualFile}" target="_blank" class="btn-manual-secondary" style="flex:1;">
           📖 전체 매뉴얼 열기
-        </a>
+        </a>` : ''}
+        ${prog.adminUrl ? `<a href="${escapeHtml(prog.adminUrl)}" target="_blank" rel="noopener" class="btn-admin-secondary" style="flex:1;">⚙️ 관리·세팅 열기</a>` : ''}
       </div>
     `;
 
