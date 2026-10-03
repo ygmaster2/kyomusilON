@@ -1,19 +1,27 @@
 /**
- * YG 바이브 코딩 누리집 (YGVIBE) 메인 애플리케이션 스크립트
+ * 교무실ON 포털 메인 스크립트 (자료는 학교 계정으로 확인된 뒤 내부자료 시트에서 받아 옴)
  */
 
 // ============================================================================
 // 교무실ON 설정
 // ----------------------------------------------------------------------------
-// 공개용 GAS 웹 앱 주소 (교무실ON 공용 시트를 읽는 스크립트, "모든 사용자"로 배포)
-// 비워두면 data.js에 적어둔 기본 일정을 보여줍니다.
+// 이 포털(GitHub)에는 자료가 없습니다. 모든 자료는 "교무실ON 내부자료" 시트에 있고,
+// 학교 계정(@yanggok.hs.kr)으로 로그인한 선생님에게만 아래 GAS 웹 앱이 건네줍니다.
+//   .../exec               → 학사일정 입력 화면 (권한 있는 선생님)
+//   .../exec?view=bridge   → 포털 안에 숨겨서 여는 자료 전달 창
+//   .../exec?view=connect  → [학교 계정으로 연결] 버튼이 여는 작은 창
 // ============================================================================
-const PORTAL_API_URL = 'https://script.google.com/macros/s/AKfycbxFCDXHt_CeflpQbnBAGWRGY5vc6ZdLHsX3QOXpMRKAJn8cgeuB9T39XThkfYq2R5aT-w/exec';
-const CALENDAR_CACHE_KEY = 'gyomusilon_calendar_v1';
+const GYOMUSIL_APP_URL = 'https://script.google.com/a/macros/yanggok.hs.kr/s/AKfycbwVnE2Y-nyeGWnQ6HdVAgD2bWECqoXoi9vCm1PinzqQpV48zCSf8U9QgH81XfsA-z0ueA/exec';
+const CALENDAR_ADMIN_URL = GYOMUSIL_APP_URL;
+const BRIDGE_URL = GYOMUSIL_APP_URL + '?view=bridge';
+const CONNECT_URL = GYOMUSIL_APP_URL + '?view=connect';
+const PORTAL_CACHE_KEY = 'gyomusilon_portal_v2';   // 이 컴퓨터에 저장해 두는 자료
+const BRIDGE_TIMEOUT_MS = 45000;                   // 이 시간 안에 학교 계정 확인이 안 되면 로그인 안내
 
-// 학사일정 입력 화면 (관리자용 GAS 웹 앱, "yanggok.hs.kr 내 사용자"로 배포)
-// 비워두면 달력의 "학사일정 관리" 버튼이 보이지 않습니다.
-const CALENDAR_ADMIN_URL = 'https://script.google.com/a/macros/yanggok.hs.kr/s/AKfycbwVnE2Y-nyeGWnQ6HdVAgD2bWECqoXoi9vCm1PinzqQpV48zCSf8U9QgH81XfsA-z0ueA/exec';
+// 시트에서 받아 오는 자료 (처음엔 비어 있음)
+let DEPARTMENTS = [];
+let PROGRAMS = [];
+let NOTICE_ITEMS = [];
 
 document.addEventListener('DOMContentLoaded', () => {
   // 상태 변수
@@ -23,6 +31,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentProgSearch = '';
   let currentNoticeFilter = 'all';
   let activeEmbeddedProgram = null;
+  let currentDeptId = null;
+  let portalUser = null;
+  let bridgeFrame = null;   // 숨겨진 자료 전달 창
+  let bridgeTimer = null;
+  let bridgeReady = false;
+  let gateTimer = null;
+  let askAction = null;
 
   // ==========================================================================
   // 1. 초기 렌더링 및 이벤트 등록
@@ -34,6 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initAnnualHub();
   initTheme();
   setupGlobalEvents();
+  initAskModal();
+  initPortalData();
 
   // ==========================================================================
   // 2. 좌측 사이드바: 10개 부서 아코디언 트리 메뉴
@@ -123,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================================================
   window.showDashboardHome = function () {
     leaveEmbeddedProgram();
+    currentDeptId = null;
     document.getElementById('dashboardView').style.display = 'block';
     document.getElementById('departmentView').style.display = 'none';
 
@@ -138,6 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.openDepartmentPage = function (deptId, targetProgId = null) {
     const dept = DEPARTMENTS.find((d) => d.id === deptId);
     if (!dept) return;
+    currentDeptId = deptId;
 
     leaveEmbeddedProgram();
 
@@ -232,31 +251,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4. 대시보드 1: 월별 학사 일정 달력
   // ==========================================================================
   function initCalendar() {
-    calendarEvents = loadInitialCalendarEvents();
+    calendarEvents = [];
     renderCalendar();
-    refreshCalendarFromSheet();
     initCalendarAdmin();
   }
 
-  // 학사일정 관리 버튼 → 포털 안에서 입력 화면 열기
+  // 학사일정 관리 버튼 → 포털 안에서 입력 화면 열기 (권한 있는 선생님에게만 보임)
   function initCalendarAdmin() {
     const btn = document.getElementById('openCalendarAdminBtn');
     if (!btn) return;
-    if (!CALENDAR_ADMIN_URL) {
-      btn.style.display = 'none';
-      return;
-    }
+    btn.style.display = 'none';
     btn.addEventListener('click', () => {
       openEmbeddedProgram({ id: 'calendar-admin', title: '학사일정 관리', launchUrl: CALENDAR_ADMIN_URL });
-    });
-
-    // 입력 화면에서 저장·삭제하면 알려줌 → 달력을 시트에서 다시 불러옴
-    window.addEventListener('message', (e) => {
-      let fromGoogle = false;
-      try { fromGoogle = /(^|\.)googleusercontent\.com$/.test(new URL(e.origin).hostname); } catch (err) { /* origin 없음 */ }
-      if (fromGoogle && e.data && e.data.source === 'gyomusilon' && e.data.type === 'calendar-updated') {
-        refreshCalendarFromSheet();
-      }
     });
   }
 
@@ -265,72 +271,230 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCalendarGrid();
   }
 
-  // --- 데이터 불러오기 ---------------------------------------------------------
-  // 1) 브라우저에 저장해둔 일정이 있으면 먼저 그걸로 바로 그리고
-  // 2) 뒤에서 시트(공개용 GAS)에 최신 일정을 요청해서, 받아오면 다시 그림
-  // 3) 둘 다 없으면 data.js의 기본 일정을 보여줌
-  function loadInitialCalendarEvents() {
-    const cached = readCalendarCache();
+  // ==========================================================================
+  // 학교 계정 연결: 자료 받기 · 이 컴퓨터에 저장 · 로그인 안내
+  // ==========================================================================
+  // 1) 이 컴퓨터에 저장해 둔 자료가 있으면 먼저 바로 보여줌
+  // 2) 숨겨진 자료 전달 창(GAS, 학교 계정 전용)을 열어 최신 자료를 받음
+  // 3) 학교 계정 확인이 안 되면 저장 자료를 지우고 로그인 안내를 띄움
+  function initPortalData() {
+    try { localStorage.removeItem('gyomusilon_calendar_v1'); } catch (e) { /* 예전 저장 자료 정리 */ }
+    window.addEventListener('message', onBridgeMessage);
+    document.getElementById('gateConnectBtn').addEventListener('click', openConnectWindow);
+    document.getElementById('gateRetryBtn').addEventListener('click', () => { showGate('checking'); loadBridge(); });
+    document.getElementById('accountChip').addEventListener('click', confirmForget);
+
+    const cached = readPortalCache();
     if (cached) {
-      setCalendarStatus(`저장된 일정 · ${formatStamp(cached.savedAt)}`);
-      return cached.events;
+      applyPortalData(cached.data);
+      setCalendarStatus(`저장된 자료 · ${formatStamp(cached.savedAt)} · 새로 확인 중…`);
+      hideGate();
+    } else {
+      showGate('checking');
     }
-    setCalendarStatus(PORTAL_API_URL ? '일정 불러오는 중…' : '기본 일정 (시트 연결 전)');
-    return getFallbackCalendarEvents();
+    loadBridge();
   }
 
-  function refreshCalendarFromSheet() {
-    if (!PORTAL_API_URL) return;
-    fetch(`${PORTAL_API_URL}?type=calendar`)
-      .then((res) => res.json())
-      .then((json) => {
-        if (!json || !Array.isArray(json.events)) {
-          throw new Error((json && json.error) || '응답 형식이 올바르지 않습니다.');
-        }
-        calendarEvents = json.events;
-        writeCalendarCache(json.events);
-        setCalendarStatus(`시트와 동기화됨 · ${formatStamp(Date.now())}`);
-        renderCalendar();
-      })
-      .catch((err) => {
-        console.warn('[교무실ON] 학사일정 불러오기 실패:', err);
-        setCalendarStatus(readCalendarCache() ? '연결 실패 · 저장된 일정 표시 중' : '연결 실패 · 기본 일정 표시 중');
-      });
+  function loadBridge() {
+    bridgeReady = false;
+    if (bridgeFrame) bridgeFrame.remove();
+    bridgeFrame = document.createElement('iframe');
+    bridgeFrame.className = 'bridge-frame';
+    bridgeFrame.title = '교무실ON 학교 계정 확인';
+    bridgeFrame.setAttribute('aria-hidden', 'true');
+    bridgeFrame.src = BRIDGE_URL + '&t=' + Date.now();
+    document.body.appendChild(bridgeFrame);
+    clearTimeout(bridgeTimer);
+    bridgeTimer = setTimeout(onBridgeTimeout, BRIDGE_TIMEOUT_MS);
   }
 
-  function getFallbackCalendarEvents() {
-    if (typeof CALENDAR_DATA === 'undefined') return [];
-    const list = [];
-    Object.values(CALENDAR_DATA).forEach((m) => {
-      (m.events || []).forEach((e) => {
-        list.push({
-          date: `${m.year}-${pad2(m.month)}-${pad2(e.date)}`,
-          title: e.title,
-          dept: e.dept || '공통',
-          isImportant: !!e.isImportant
-        });
-      });
-    });
-    return list;
+  function isGoogleOrigin(origin) {
+    try { return /(^|\.)googleusercontent\.com$/.test(new URL(origin).hostname); } catch (e) { return false; }
   }
 
-  function readCalendarCache() {
+  function onBridgeMessage(e) {
+    if (!isGoogleOrigin(e.origin) || !e.data) return;
+    const msg = e.data;
+    // 학사일정 입력 화면에서 저장·삭제 → 자료 다시 받기
+    if (msg.source === 'gyomusilon' && msg.type === 'calendar-updated') { loadBridge(); return; }
+    if (msg.source !== 'gyomusilon-bridge') return;
+
+    if (msg.type === 'bridge-ready') {
+      bridgeReady = true;
+      clearTimeout(bridgeTimer);
+      bridgeTimer = setTimeout(onBridgeTimeout, BRIDGE_TIMEOUT_MS + 30000); // 자료 읽기까지 조금 더 기다림
+      setGateText('학교 계정이 확인되었습니다', '자료를 불러오는 중입니다…');
+    } else if (msg.type === 'portal-data' && msg.data) {
+      clearTimeout(bridgeTimer);
+      applyPortalData(msg.data);
+      writePortalCache(msg.data);
+      setCalendarStatus(`학교 계정 연결됨 · ${formatStamp(Date.now())}`);
+      hideGate();
+      if (bridgeFrame) { bridgeFrame.remove(); bridgeFrame = null; }
+    } else if (msg.type === 'portal-error') {
+      clearTimeout(bridgeTimer);
+      lockPortal(msg.message);
+    }
+  }
+
+  function onBridgeTimeout() {
+    if (bridgeFrame) { bridgeFrame.remove(); bridgeFrame = null; }
+    if (navigator.onLine === false && readPortalCache()) {
+      setCalendarStatus('인터넷 연결 없음 · 저장된 자료 표시 중');
+      return;
+    }
+    lockPortal();
+  }
+
+  // 학교 계정 확인 실패 → 저장 자료를 지우고 로그인 안내
+  function lockPortal(message) {
+    clearPortalCache();
+    applyPortalData({ depts: [], programs: [], notices: [], events: [], user: null });
+    setCalendarStatus('학교 계정 확인 필요');
+    showGate('login', message);
+  }
+
+  function openConnectWindow() {
+    const w = 480, h = 620;
+    const left = window.screenX + Math.max(0, (window.outerWidth - w) / 2);
+    const top = window.screenY + Math.max(0, (window.outerHeight - h) / 3);
+    const win = window.open(CONNECT_URL, 'gyomusilon_connect', `width=${w},height=${h},left=${left},top=${top}`);
+    if (!win) {
+      setGateText('연결 창이 막혔습니다', '브라우저 주소창 오른쪽의 "팝업 차단" 표시를 눌러 이 사이트의 팝업을 허용한 뒤 다시 눌러 주세요.');
+      return;
+    }
+    showGate('checking');
+    setGateText('연결 창에서 학교 계정을 골라 주세요', '구글 계정 선택 화면이 나오면 @yanggok.hs.kr 계정을 고르면 됩니다.');
+    clearTimeout(bridgeTimer);
+    bridgeTimer = setTimeout(onBridgeTimeout, 180000); // 로그인하는 시간을 넉넉히
+  }
+
+  function applyPortalData(data) {
+    DEPARTMENTS = Array.isArray(data.depts) ? data.depts : [];
+    PROGRAMS = Array.isArray(data.programs) ? data.programs : [];
+    NOTICE_ITEMS = Array.isArray(data.notices) ? data.notices : [];
+    calendarEvents = Array.isArray(data.events) ? data.events : [];
+    portalUser = data.user || null;
+
+    initSidebarDepartmentTree();
+    renderCalendar();
+    renderNotices();
+    renderAllPrograms();
+    updateAnnualCounter();
+
+    const adminBtn = document.getElementById('openCalendarAdminBtn');
+    if (adminBtn) adminBtn.style.display = portalUser && portalUser.canEditCalendar ? '' : 'none';
+
+    const chip = document.getElementById('accountChip');
+    if (chip) {
+      chip.style.display = portalUser ? '' : 'none';
+      chip.textContent = portalUser ? `👤 ${portalUser.name} 선생님` : '';
+      chip.title = portalUser ? `${portalUser.email}\n누르면 이 컴퓨터에 저장된 교무실ON 자료를 지울 수 있습니다.` : '';
+    }
+
+    // 부서 화면을 보고 있었다면 새 자료로 다시 그림
+    const deptView = document.getElementById('departmentView');
+    if (currentDeptId && deptView && deptView.style.display !== 'none') {
+      if (DEPARTMENTS.some((d) => d.id === currentDeptId)) openDepartmentPage(currentDeptId);
+      else showDashboardHome();
+    }
+  }
+
+  function readPortalCache() {
     try {
-      const raw = localStorage.getItem(CALENDAR_CACHE_KEY);
+      const raw = localStorage.getItem(PORTAL_CACHE_KEY);
       if (!raw) return null;
       const obj = JSON.parse(raw);
-      return obj && Array.isArray(obj.events) ? obj : null;
+      return obj && obj.data ? obj : null;
     } catch (e) {
       return null;
     }
   }
 
-  function writeCalendarCache(events) {
+  function writePortalCache(data) {
     try {
-      localStorage.setItem(CALENDAR_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), events }));
+      localStorage.setItem(PORTAL_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data }));
     } catch (e) {
       /* 저장소를 쓸 수 없는 환경이면 그냥 넘어감 */
     }
+  }
+
+  function clearPortalCache() {
+    try { localStorage.removeItem(PORTAL_CACHE_KEY); } catch (e) { /* 무시 */ }
+  }
+
+  // --- 로그인 안내 화면 (진행 중 알림 포함) ---
+  function showGate(mode, message) {
+    const gate = document.getElementById('loginGate');
+    gate.classList.add('show');
+    gate.dataset.mode = mode;
+    clearInterval(gateTimer);
+    if (mode === 'checking') {
+      const start = Date.now();
+      setGateText('학교 계정을 확인하는 중입니다…', '잠시만 기다려 주세요.');
+      gateTimer = setInterval(() => {
+        const sec = Math.floor((Date.now() - start) / 1000);
+        const sub = document.getElementById('gateSub');
+        if (sec >= 10) sub.innerHTML = `${sec}초째 진행 중…<br>구글 서버가 응답을 준비하고 있습니다. 처음 열거나 오랜만에 쓸 때는 30초~1분까지 걸릴 수 있어요.`;
+        else if (sec >= 3) sub.textContent = `${sec}초째 진행 중…`;
+      }, 1000);
+    } else {
+      setGateText('학교 계정으로 로그인하면 볼 수 있습니다',
+        '교무실ON은 양곡고 선생님 전용입니다. 크롬에 학교 계정(@yanggok.hs.kr)으로 로그인한 뒤 아래 버튼을 눌러 주세요.' +
+        (message ? `<br><span class="gate-err">${escapeHtml(message)}</span>` : ''));
+    }
+  }
+
+  function setGateText(title, sub) {
+    document.getElementById('gateTitle').textContent = title;
+    document.getElementById('gateSub').innerHTML = sub;
+  }
+
+  function hideGate() {
+    clearInterval(gateTimer);
+    document.getElementById('loginGate').classList.remove('show');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  // --- 이 컴퓨터에서 지우기 (확인 모달) ---
+  function initAskModal() {
+    const box = document.getElementById('confirmBox');
+    document.getElementById('cfOk').addEventListener('click', () => closeAsk(true));
+    document.getElementById('cfCancel').addEventListener('click', () => closeAsk(false));
+    box.addEventListener('click', (e) => { if (e.target === box) closeAsk(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && box.classList.contains('show')) closeAsk(false); });
+  }
+  function ask(opt, onOk) {
+    askAction = onOk;
+    document.getElementById('cfTitle').textContent = opt.title;
+    document.getElementById('cfBody').innerHTML = opt.body;
+    document.getElementById('cfOk').textContent = opt.ok;
+    document.getElementById('cfIcon').textContent = opt.danger ? '⚠️' : '❓';
+    document.getElementById('cfPanel').classList.toggle('danger', !!opt.danger);
+    document.getElementById('confirmBox').classList.add('show');
+    setTimeout(() => document.getElementById(opt.danger ? 'cfCancel' : 'cfOk').focus(), 0);
+  }
+  function closeAsk(run) {
+    document.getElementById('confirmBox').classList.remove('show');
+    const fn = askAction; askAction = null;
+    if (run && fn) fn();
+  }
+  function confirmForget() {
+    ask({
+      title: '이 컴퓨터에서 교무실ON 자료를 지울까요?',
+      body: `<b>${escapeHtml(portalUser ? portalUser.email : '')}</b> 계정으로 받아 저장해 둔 자료를 이 컴퓨터에서 지웁니다.\n학교 계정 로그인은 그대로이며, 다음에 포털을 열면 다시 받아 옵니다.\n다른 사람과 같이 쓰는 컴퓨터라면 지워 두세요.`,
+      ok: '이 컴퓨터에서 지우기',
+      danger: true
+    }, () => {
+      clearPortalCache();
+      applyPortalData({ depts: [], programs: [], notices: [], events: [], user: null });
+      setCalendarStatus('저장된 자료를 지웠습니다');
+      showGate('login');
+      setGateText('이 컴퓨터에 저장된 자료를 지웠습니다', '다시 보려면 아래 [학교 계정으로 연결] 또는 [다시 확인]을 눌러 주세요.');
+    });
   }
 
   function setCalendarStatus(text) {
@@ -561,7 +725,11 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // 인수인계 카운터 업데이트
+    updateAnnualCounter();
+  }
+
+  // 인수인계 카운터 업데이트
+  function updateAnnualCounter() {
     const annualResetCount = PROGRAMS.filter((p) => p.annualReset).length;
     const counterBadge = document.getElementById('annualCounter');
     if (counterBadge) counterBadge.textContent = annualResetCount;
@@ -702,7 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function leaveEmbeddedProgram() {
     if (activeEmbeddedProgram && activeEmbeddedProgram.id === 'calendar-admin') {
-      refreshCalendarFromSheet();
+      loadBridge();
     }
     const view = document.getElementById('embeddedProgramView');
     const frame = document.getElementById('embeddedProgramFrame');
