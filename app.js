@@ -327,12 +327,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 🗂️ 관리: 내 권한으로 열 수 있는 관리 화면을 골라 포털 안에서 열기
   function openAdminMenu() {
-    const items = (portalUser && portalUser.menu) || [];
+    const items = ((portalUser && portalUser.menu) || []).slice().sort((a, b) => (a.url ? 1 : 0) - (b.url ? 1 : 0));
     if (!items.length) return;
     ask({
       title: '어떤 관리 화면을 열까요?',
-      body: `<div class="admin-menu-list">${items.map((it) =>
-        `<button type="button" class="admin-menu-item" data-view="${escapeHtml(it.view)}">` +
+      body: `<div class="admin-menu-list">${items.map((it, i) =>
+        (it.url && (i === 0 || !items[i - 1].url) ? '<div class="admin-menu-group">내가 관리하는 프로그램</div>' : '') +
+        `<button type="button" class="admin-menu-item" data-idx="${i}">` +
         `<span class="ami-icon">${escapeHtml(it.icon)}</span><span><b>${escapeHtml(it.title)}</b>` +
         `<small>${escapeHtml(it.desc || '')}</small></span></button>`).join('')}</div>`,
       ok: '닫기',
@@ -341,8 +342,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cfIcon').textContent = '🗂️';
     document.querySelectorAll('.admin-menu-item').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const it = items.find((x) => x.view === btn.dataset.view);
+        const it = items[Number(btn.dataset.idx)];
         closeAsk(false);
+        if (it && it.url) { window.open(it.url, '_blank', 'noopener'); return; }
         if (it) openEmbeddedProgram({ id: 'admin-' + it.view, title: it.title, launchUrl: `${GYOMUSIL_APP_URL}?view=${encodeURIComponent(it.view)}` });
       });
     });

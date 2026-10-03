@@ -1512,3 +1512,4 @@ body.program-mode .content-area {
 .admin-menu-item b { display: block; font-size: 0.95rem; }
 .admin-menu-item small { display: block; color: var(--text-muted); font-size: 0.78rem; margin-top: 2px; }
 .ami-icon { font-size: 1.4rem; width: 40px; height: 40px; border-radius: 10px; background: var(--primary-subtle, #eff6ff); display: flex; align-items: center; justify-content: center; flex: none; }
+.admin-menu-group { font-size: 0.76rem; font-weight: 800; color: var(--text-muted); margin: 6px 0 -2px 2px; }
