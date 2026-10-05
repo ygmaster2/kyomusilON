@@ -529,6 +529,16 @@ body.program-mode .today-calendar-badge {
   background: #f3f4f6;
 }
 
+.embedded-program-view { position: relative; }
+.embedded-loading {
+  position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 24px; background: #f3f4f6; color: #64748b; font-size: .9rem; line-height: 1.6;
+}
+.embedded-loading.show { display: flex; }
+.embedded-loading b { display: block; color: #1e293b; font-size: 1.05rem; margin-bottom: 6px; }
+.el-spinner { width: 34px; height: 34px; border: 4px solid #dbeafe; border-top-color: #2563eb; border-radius: 50%; margin: 0 auto 12px; animation: elspin .8s linear infinite; }
+@keyframes elspin { to { transform: rotate(360deg); } }
+
 .embedded-program-view iframe {
   display: block;
   width: 100%;

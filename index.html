@@ -10,7 +10,7 @@
   <!-- Pretendard Web Font -->
   <link rel="stylesheet" as="style" crossorigin
     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-  <link rel="stylesheet" href="style.css?v=20261005a">
+  <link rel="stylesheet" href="style.css?v=20261005b">
   <!-- 앱 설치(PWA) -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
@@ -293,6 +293,12 @@
              ==================================================================== -->
         <section id="embeddedProgramView" class="embedded-program-view" aria-label="프로그램 실행 화면">
           <iframe id="embeddedProgramFrame" title="교무실ON 프로그램 실행" src="about:blank"></iframe>
+          <!-- 프로그램 화면이 뜰 때까지 덮어 두는 안내 -->
+          <div id="embeddedLoading" class="embedded-loading" role="status" aria-live="polite">
+            <div class="el-spinner"></div>
+            <b id="embeddedLoadingMsg">프로그램을 여는 중입니다…</b>
+            <div id="embeddedLoadingSub">잠시만 기다려 주세요.</div>
+          </div>
         </section>
 
       </main>
@@ -401,7 +407,7 @@
   </div>
 
   <!-- Scripts (자료는 data.js 없이 학교 계정 확인 후 시트에서 받아 옴) -->
-  <script src="app.js?v=20261005a"></script>
+  <script src="app.js?v=20261005b"></script>
 </body>
 
 </html>

@@ -1007,6 +1007,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('dashboardView').style.display = 'none';
     document.getElementById('departmentView').style.display = 'none';
     view.style.display = 'block';
+    showEmbeddedLoading(prog.title);
+    frame.onload = () => { if (!String(frame.src).startsWith('about:')) hideEmbeddedLoading(); };
     frame.src = prog.launchUrl;
 
     document.body.classList.add('program-mode', 'sidebar-collapsed');
@@ -1018,7 +1020,33 @@ document.addEventListener('DOMContentLoaded', () => {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
+  // 포털 안에서 프로그램을 열 때: 화면이 뜰 때까지 안내 + 경과 시간 (구글 서버는 처음 열 때 30초~1분 걸리기도 함)
+  let embeddedLoadTimer = null;
+  function showEmbeddedLoading(title) {
+    const box = document.getElementById('embeddedLoading');
+    if (!box) return;
+    document.getElementById('embeddedLoadingMsg').textContent = (title ? title + ' ' : '프로그램 ') + '화면을 여는 중입니다…';
+    const sub = document.getElementById('embeddedLoadingSub');
+    sub.innerHTML = '잠시만 기다려 주세요.';
+    box.classList.add('show');
+    const start = Date.now();
+    clearInterval(embeddedLoadTimer);
+    embeddedLoadTimer = setInterval(() => {
+      const sec = Math.floor((Date.now() - start) / 1000);
+      if (sec < 3) return;
+      sub.innerHTML = sec + '초째 진행 중…' + (sec >= 10
+        ? '<br>구글 서버가 응답을 준비하고 있습니다. 처음 열거나 오랜만에 쓸 때는 30초~1분까지 걸릴 수 있어요.'
+        : '<br>잠시만 기다려 주세요.');
+    }, 1000);
+  }
+  function hideEmbeddedLoading() {
+    clearInterval(embeddedLoadTimer);
+    const box = document.getElementById('embeddedLoading');
+    if (box) box.classList.remove('show');
+  }
+
   function leaveEmbeddedProgram() {
+    hideEmbeddedLoading();
     if (activeEmbeddedProgram && /^(calendar-admin|notice-admin|admin-)/.test(activeEmbeddedProgram.id)) {
       loadBridge();
     }
