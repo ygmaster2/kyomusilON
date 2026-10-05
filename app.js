@@ -344,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('click', () => {
         const it = items[Number(btn.dataset.idx)];
         closeAsk(false);
-        if (it && it.url) { window.open(it.url, '_blank', 'noopener'); return; }
+        if (it && it.url) { openAdminUrl(it.title, it.url, it.id || it.title); return; }
         if (it) openEmbeddedProgram({ id: 'admin-' + it.view, title: it.title, launchUrl: `${GYOMUSIL_APP_URL}?view=${encodeURIComponent(it.view)}` });
       });
     });
@@ -905,9 +905,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const accessBadge = prog.locked
       ? `<span class="badge badge-locked" title="업무 담당자만 실행할 수 있어요">🔒 ${escapeHtml(prog.accessLabel || '업무담당자용')}</span>`
       : (prog.restricted ? `<span class="badge badge-restricted" title="볼 수 있는 사람이 정해진 프로그램입니다">🔐 ${escapeHtml(prog.accessLabel)}</span>` : '');
-    const adminButton = prog.adminUrl
-      ? `<a href="${escapeHtml(prog.adminUrl)}" target="_blank" rel="noopener" class="btn-admin-secondary" title="관리·세팅 (권한 있는 선생님에게만 보임)"><span>⚙️ 관리</span></a>`
-      : '';
+    const adminButton = !prog.adminUrl ? ''
+      : isGasUrl(prog.adminUrl)
+      ? `<button type="button" class="btn-admin-secondary btn-admin-embed" title="관리·세팅 (권한 있는 선생님에게만 보임)"><span>⚙️ 관리</span></button>`
+      : `<a href="${escapeHtml(prog.adminUrl)}" target="_blank" rel="noopener" class="btn-admin-secondary" title="관리·세팅 (권한 있는 선생님에게만 보임)"><span>⚙️ 관리</span></a>`;
 
     const isEmbedded = prog.launchType === 'EMBED';
     const launchButton = prog.locked
@@ -955,6 +956,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (embedBtn) {
       embedBtn.addEventListener('click', () => openEmbeddedProgram(prog));
     }
+    const adminEmbedBtn = card.querySelector('.btn-admin-embed');
+    if (adminEmbedBtn) adminEmbedBtn.addEventListener('click', () => openAdminUrl(prog.title, prog.adminUrl, prog.id));
 
     // 인수인계 가이드 버튼 클릭 이벤트
     const guideBtn = card.querySelector('.btn-guide-warn');
@@ -979,6 +982,18 @@ document.addEventListener('DOMContentLoaded', () => {
         `사용해야 한다면 ${escapeHtml(prog.department || '담당 부서')}나 교무실ON 관리자에게 권한을 요청해 주세요.`,
       ok: '확인',
       info: true
+    });
+  }
+
+  // 관리주소가 GAS 웹앱이면 포털 안에서 열고(주소창이 안 보임), 시트·폴더 등은 새 탭으로
+  function isGasUrl(u) { return /^https:\/\/script\.google\.com\//.test(String(u || '')); }
+  function openAdminUrl(title, url, id) {
+    if (!url) return;
+    if (!isGasUrl(url)) { window.open(url, '_blank', 'noopener'); return; }
+    openEmbeddedProgram({
+      id: 'admin-prog-' + (id || ''),
+      title: (title || '프로그램') + ' 관리',
+      launchUrl: url + (url.indexOf('?') === -1 ? '?' : '&') + 'embed=1'   // 안에 띄운 표시 → 관리 화면이 [출력 화면으로] 버튼을 숨김
     });
   }
 
@@ -1106,7 +1121,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ${prog.manualFile ? `<a href="${prog.manualFile}" target="_blank" class="btn-manual-secondary" style="flex:1;">
           📖 전체 매뉴얼 열기
         </a>` : ''}
-        ${prog.adminUrl ? `<a href="${escapeHtml(prog.adminUrl)}" target="_blank" rel="noopener" class="btn-admin-secondary" style="flex:1;">⚙️ 관리·세팅 열기</a>` : ''}
+        ${!prog.adminUrl ? '' : isGasUrl(prog.adminUrl)
+          ? `<button type="button" id="handoverAdminBtn" class="btn-admin-secondary" style="flex:1;">⚙️ 관리·세팅 열기</button>`
+          : `<a href="${escapeHtml(prog.adminUrl)}" target="_blank" rel="noopener" class="btn-admin-secondary" style="flex:1;">⚙️ 관리·세팅 열기</a>`}
       </div>
     `;
 
@@ -1114,6 +1131,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 닫기 버튼들
     document.getElementById('closeHandoverModalBtn').onclick = () => modal.classList.remove('show');
+    const handoverAdminBtn = document.getElementById('handoverAdminBtn');
+    if (handoverAdminBtn) handoverAdminBtn.onclick = () => { modal.classList.remove('show'); openAdminUrl(prog.title, prog.adminUrl, prog.id); };
     document.getElementById('modalHandoverCloseBtn').onclick = () => modal.classList.remove('show');
   }
 
@@ -1235,7 +1254,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (openProgramNewWindowBtn) {
       openProgramNewWindowBtn.addEventListener('click', () => {
         if (activeEmbeddedProgram) {
-          window.open(activeEmbeddedProgram.launchUrl, '_blank', 'noopener');
+          window.open(activeEmbeddedProgram.launchUrl.replace(/([?&])embed=1(&|$)/, (m, a, b) => (b ? a : '')), '_blank', 'noopener');
         }
       });
     }
