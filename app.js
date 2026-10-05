@@ -144,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================================================
   window.showDashboardHome = function () {
     leaveEmbeddedProgram();
+    hideAdminCenter();
     currentDeptId = null;
     document.getElementById('dashboardView').style.display = 'block';
     document.getElementById('departmentView').style.display = 'none';
@@ -163,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentDeptId = deptId;
 
     leaveEmbeddedProgram();
+    hideAdminCenter();
 
     // 뷰 전환
     document.getElementById('dashboardView').style.display = 'none';
@@ -325,29 +327,97 @@ document.addEventListener('DOMContentLoaded', () => {
     bridgeTimer = setTimeout(onBridgeTimeout, BRIDGE_TIMEOUT_MS);
   }
 
-  // 🗂️ 관리: 내 권한으로 열 수 있는 관리 화면을 골라 포털 안에서 열기
+  // 🗂️ 관리 센터: 내 권한으로 열 수 있는 관리 화면을 묶음별 타일로 (포털 안 한 화면)
+  //   ready  = 맨 위 📋 학기 준비 현황 띠 (전체관리자는 진행률)
+  //   data   = 기본 자료 (학사일정·시험시간표·개설과목·부서공지)
+  //   system = 전체관리자 전용 (권한 관리)
+  //   url 있는 항목 = 내가 관리하는 프로그램 (관리주소)
+  let adminCenterDept = '';
+  function adminCenterView() {
+    let view = document.getElementById('adminCenterView');
+    if (!view) {
+      view = document.createElement('section');
+      view.id = 'adminCenterView';
+      view.className = 'admin-center';
+      view.setAttribute('aria-label', '관리 센터');
+      const anchor = document.getElementById('embeddedProgramView');
+      anchor.parentNode.insertBefore(view, anchor);
+      view.addEventListener('click', onAdminCenterClick);
+      view.addEventListener('input', (e) => { if (e.target.id === 'acSearch') renderAdminCenter(); });
+      view.addEventListener('change', (e) => { if (e.target.id === 'acDept') { adminCenterDept = e.target.value; renderAdminCenter(); } });
+    }
+    return view;
+  }
+  function hideAdminCenter() {
+    const v = document.getElementById('adminCenterView');
+    if (v) v.style.display = 'none';
+  }
   function openAdminMenu() {
-    const items = ((portalUser && portalUser.menu) || []).slice().sort((a, b) => (a.url ? 1 : 0) - (b.url ? 1 : 0));
-    if (!items.length) return;
-    ask({
-      title: '어떤 관리 화면을 열까요?',
-      body: `<div class="admin-menu-list">${items.map((it, i) =>
-        (it.url && (i === 0 || !items[i - 1].url) ? '<div class="admin-menu-group">내가 관리하는 프로그램</div>' : '') +
-        `<button type="button" class="admin-menu-item" data-idx="${i}">` +
-        `<span class="ami-icon">${escapeHtml(it.icon)}</span><span><b>${escapeHtml(it.title)}</b>` +
-        `<small>${escapeHtml(it.desc || '')}</small></span></button>`).join('')}</div>`,
-      ok: '닫기',
-      info: true
-    });
-    document.getElementById('cfIcon').textContent = '🗂️';
-    document.querySelectorAll('.admin-menu-item').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const it = items[Number(btn.dataset.idx)];
-        closeAsk(false);
-        if (it && it.url) { openAdminUrl(it.title, it.url, it.id || it.title); return; }
-        if (it) openEmbeddedProgram({ id: 'admin-' + it.view, title: it.title, launchUrl: `${GYOMUSIL_APP_URL}?view=${encodeURIComponent(it.view)}` });
-      });
-    });
+    if (!portalUser || !portalUser.menu || !portalUser.menu.length) return;
+    leaveEmbeddedProgram();
+    document.getElementById('dashboardView').style.display = 'none';
+    document.getElementById('departmentView').style.display = 'none';
+    document.querySelectorAll('.tree-item-btn').forEach((btn) => btn.classList.remove('active'));
+    document.getElementById('breadcrumbDept').textContent = '관리 센터';
+    const view = adminCenterView();
+    view.style.display = 'block';
+    view.innerHTML = '';
+    renderAdminCenter();
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }
+  function acDeptOf(it) { const m = String(it.desc || '').match(/·\s*(.+)$/); return m ? m[1].trim() : ''; }
+  function acTile(it, idx) {
+    return `<button type="button" class="ac-tile${it.url ? ' prog' : ''}" data-idx="${idx}" title="${escapeHtml(it.desc || '')}">` +
+      `<span class="ac-ic">${escapeHtml(it.icon || '⚙️')}</span><span class="ac-tx"><b>${escapeHtml(it.title)}</b>` +
+      `<small>${escapeHtml(it.url ? (acDeptOf(it) || '프로그램 관리') : (it.desc || ''))}</small></span></button>`;
+  }
+  function renderAdminCenter() {
+    const view = document.getElementById('adminCenterView');
+    if (!view || view.style.display === 'none') return;
+    const items = (portalUser && portalUser.menu) || [];
+    const prevQ = document.getElementById('acSearch') ? document.getElementById('acSearch').value : '';
+    const q = prevQ.trim().toLowerCase();
+    const hit = (it) => !q || (it.title + ' ' + (it.desc || '')).toLowerCase().indexOf(q) !== -1;
+    const idxOf = (it) => items.indexOf(it);
+    const ready = items.filter((it) => it.view === 'ready')[0];
+    const data = items.filter((it) => !it.url && it.view !== 'ready' && it.view !== 'auth' && it.group !== 'system');
+    const system = items.filter((it) => !it.url && (it.view === 'auth' || it.group === 'system'));
+    const progs = items.filter((it) => it.url);
+    const depts = [];
+    progs.forEach((it) => { const d = acDeptOf(it); if (d && depts.indexOf(d) === -1) depts.push(d); });
+    if (adminCenterDept && depts.indexOf(adminCenterDept) === -1) adminCenterDept = '';
+    const progShown = progs.filter((it) => hit(it) && (!adminCenterDept || acDeptOf(it) === adminCenterDept));
+
+    let readyHtml = '';
+    if (ready && hit(ready)) {
+      const st = ready.stat;
+      const pct = st && st.total ? Math.round(st.done * 100 / st.total) : 0;
+      readyHtml = `<button type="button" class="ac-ready" data-idx="${idxOf(ready)}">` +
+        `<span class="ac-ic">📋</span><span class="ac-ready-body"><b>${st ? escapeHtml(st.year + '학년도 ' + st.sem + '학기 ') : ''}학기 준비 현황</b>` +
+        (st ? `<span class="ac-bar"><i style="width:${pct}%"></i></span><small>${st.total} 항목 중 ${st.done}개 완료 (${pct}%)${st.total - st.done ? ' · <b class="ac-left">남은 항목 ' + (st.total - st.done) + '개</b>' : ' · 모두 완료 ✅'}</small>`
+            : `<small>${escapeHtml(ready.desc || '')}</small>`) +
+        `</span><span class="ac-go">현황 보기 ›</span></button>`;
+    }
+    const sec = (title, list, extra) => list.length
+      ? `<div class="ac-sec"><div class="ac-sec-h"><h3>${title}</h3>${extra || ''}</div><div class="ac-grid">${list.map((it) => acTile(it, idxOf(it))).join('')}</div></div>` : '';
+    const deptSel = depts.length > 1
+      ? `<select id="acDept" class="ac-dept"><option value="">모든 부서 (${progs.length})</option>${depts.map((d) => `<option${d === adminCenterDept ? ' selected' : ''}>${escapeHtml(d)}</option>`).join('')}</select>` : '';
+    const body = readyHtml + sec('기본 자료', data.filter(hit)) + sec('내가 관리하는 프로그램', progShown, deptSel) + sec('시스템 <span class="ac-only">전체관리자</span>', system.filter(hit));
+
+    view.innerHTML = `<div class="ac-head"><h2>🗂️ 관리 센터</h2>` +
+      `<input type="search" id="acSearch" class="ac-search" placeholder="관리 화면·프로그램 찾기" value="${escapeHtml(prevQ)}"></div>` +
+      (body || `<div class="ac-empty">찾는 관리 화면이 없습니다.</div>`) +
+      `<p class="ac-note">보이는 항목은 내 권한에 따라 달라요. 필요한 관리 화면이 없으면 전체관리자에게 요청해 주세요.</p>`;
+    if (prevQ) { const s = document.getElementById('acSearch'); s.focus(); s.setSelectionRange(prevQ.length, prevQ.length); }
+  }
+  function onAdminCenterClick(e) {
+    const btn = e.target.closest('[data-idx]');
+    if (!btn) return;
+    const it = ((portalUser && portalUser.menu) || [])[Number(btn.dataset.idx)];
+    if (!it) return;
+    if (it.url) { openAdminUrl(it.title, it.url, it.id || it.title, true); return; }
+    openEmbeddedProgram({ id: 'admin-' + it.view, title: it.title, fromCenter: true,
+      launchUrl: `${GYOMUSIL_APP_URL}?view=${encodeURIComponent(it.view)}` });
   }
 
   // 🔄 새로고침: 화면은 그대로 두고 자료만 다시 받음
@@ -443,6 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
     portalUser = data.user || null;
 
     initSidebarDepartmentTree();
+    renderAdminCenter();   // 관리 센터를 보고 있었다면 새 자료(준비 현황 숫자 등)로 다시 그림
     renderCalendar();
     renderNotices();
     renderAllPrograms();
@@ -987,11 +1058,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 관리주소가 GAS 웹앱이면 포털 안에서 열고(주소창이 안 보임), 시트·폴더 등은 새 탭으로
   function isGasUrl(u) { return /^https:\/\/script\.google\.com\//.test(String(u || '')); }
-  function openAdminUrl(title, url, id) {
+  function openAdminUrl(title, url, id, fromCenter) {
     if (!url) return;
     if (!isGasUrl(url)) { window.open(url, '_blank', 'noopener'); return; }
     openEmbeddedProgram({
-      id: 'admin-prog-' + (id || ''),
+      id: 'admin-prog-' + (id || ''), fromCenter: !!fromCenter,
       title: (title || '프로그램') + ' 관리',
       launchUrl: url + (url.indexOf('?') === -1 ? '?' : '&') + 'embed=1'   // 안에 띄운 표시 → 관리 화면이 [출력 화면으로] 버튼을 숨김
     });
@@ -1004,6 +1075,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!view || !frame) return;
 
     activeEmbeddedProgram = prog;
+    hideAdminCenter();
     document.getElementById('dashboardView').style.display = 'none';
     document.getElementById('departmentView').style.display = 'none';
     view.style.display = 'block';
@@ -1269,8 +1341,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (closeProgramViewBtn) {
       closeProgramViewBtn.addEventListener('click', () => {
         const previousDept = activeEmbeddedProgram ? activeEmbeddedProgram.department : null;
+        const backToCenter = activeEmbeddedProgram && activeEmbeddedProgram.fromCenter;
         document.body.classList.remove('sidebar-collapsed');
-        if (previousDept) {
+        if (backToCenter) {
+          openAdminMenu();   // 관리 센터에서 연 화면이면 관리 센터로 돌아감
+        } else if (previousDept) {
           openDepartmentPage(previousDept);
         } else {
           showDashboardHome();
