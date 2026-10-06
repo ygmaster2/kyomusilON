@@ -1230,6 +1230,29 @@ body.program-mode .content-area {
   margin-bottom: 4px;
 }
 
+.work-people {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.dept-head-line {
+  margin: 6px 0 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.dept-head-label {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--primary);
+  background: var(--primary-subtle, #eff6ff);
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-right: 4px;
+}
+
 .work-duty-text {
   font-size: 0.83rem;
   color: var(--text-secondary);

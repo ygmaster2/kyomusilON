@@ -187,6 +187,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('deptTitleEl').textContent = dept.name;
     document.getElementById('deptDescEl').textContent = dept.desc;
 
+    // 1-2) 부장 이름 (교사명단 담당업무 "부장")
+    const headEl = document.getElementById('deptHeadEl');
+    if (headEl) {
+      const heads = Array.isArray(dept.heads) ? dept.heads : [];
+      headEl.innerHTML = heads.length ? `<span class="dept-head-label">부장</span> ${escapeHtml(heads.join(', '))}` : '';
+      headEl.style.display = heads.length ? '' : 'none';
+    }
+
     // 2) 계별 업무 분장표 그리드 채우기
     const workGrid = document.getElementById('deptWorkSummaryGrid');
     workGrid.innerHTML = '';
@@ -194,9 +202,10 @@ document.addEventListener('DOMContentLoaded', () => {
       dept.workSummary.forEach((ws) => {
         const item = document.createElement('div');
         item.className = 'work-summary-item';
+        const people = Array.isArray(ws.people) && ws.people.length ? `<span class="work-people">(${escapeHtml(ws.people.join(', '))})</span>` : '';
         item.innerHTML = `
-          <div class="work-role-badge">📌 ${ws.role}</div>
-          <div class="work-duty-text">${ws.duty}</div>
+          <div class="work-role-badge">📌 ${escapeHtml(ws.role)} ${people}</div>
+          <div class="work-duty-text">${escapeHtml(ws.duty)}</div>
         `;
         workGrid.appendChild(item);
       });
@@ -207,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tipText = document.getElementById('deptHandoverTipText');
     if (dept.handoverTip) {
       tipBox.style.display = 'flex';
-      tipText.innerHTML = `<strong>신학년도 세팅 팁:</strong> ${dept.handoverTip}`;
+      tipText.innerHTML = `<strong>신학년도 세팅 팁:</strong> ${escapeHtml(dept.handoverTip)}`;  // 부장이 웹에서 쓰므로 글자 그대로
     } else {
       tipBox.style.display = 'none';
     }
@@ -449,7 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isGoogleOrigin(e.origin) || !e.data) return;
     const msg = e.data;
     // 학사일정 입력 화면에서 저장·삭제 → 자료 다시 받기
-    if (msg.source === 'gyomusilon' && (msg.type === 'calendar-updated' || msg.type === 'notice-updated')) { loadBridge(); return; }
+    if (msg.source === 'gyomusilon' && (msg.type === 'calendar-updated' || msg.type === 'notice-updated' || msg.type === 'dept-updated')) { loadBridge(); return; }
     if (msg.source !== 'gyomusilon-bridge') return;
 
     if (msg.type === 'bridge-ready') {

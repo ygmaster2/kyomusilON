@@ -5,7 +5,7 @@
  *   → GitHub에 index.html·app.js·style.css를 새로 올리면 다음에 열 때 바로 반영됩니다.
  * - 파일을 고칠 때마다 아래 VERSION을 바꾸면 예전 저장본이 정리됩니다.
  */
-const VERSION = '20261005c';
+const VERSION = '20261006a';
 const CACHE = 'gyomusilon-shell-' + VERSION;
 const SHELL = ['./', './index.html', './app.js?v=' + VERSION, './style.css?v=' + VERSION, './manifest.json', './icon-192.png', './icon-512.png', './favicon-32.png'];
 
