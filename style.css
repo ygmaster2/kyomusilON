@@ -1230,6 +1230,39 @@ body.program-mode .content-area {
   margin-bottom: 4px;
 }
 
+.work-duty-text div {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work-duty-full {
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.work-duty-full .sub {
+  padding-left: 14px;
+  font-size: 0.8rem;
+}
+
+.work-more {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.work-summary-item.open {
+  grid-column: 1 / -1;
+}
+
 .work-people {
   font-weight: 700;
   color: var(--text-main);

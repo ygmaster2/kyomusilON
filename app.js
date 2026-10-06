@@ -158,6 +158,15 @@ document.addEventListener('DOMContentLoaded', () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // 업무내용 → 카드에 보일 짧은 내용: "·" 큰 항목만 앞에서 4개 (없으면 앞 4줄). 나머지·세부(-)는 [더보기]
+  const DUTY_SHORT_LINES = 4;
+  function dutySummary(text) {
+    const lines = String(text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const heads = lines.filter((l) => /^[·‧•]/.test(l)).map((l) => l.replace(/^[·‧•]\s*/, ''));
+    const base = heads.length ? heads : lines;
+    return { full: lines, short: base.slice(0, DUTY_SHORT_LINES).concat(base.length > DUTY_SHORT_LINES ? ['…'] : []), more: base.length < lines.length || base.length > DUTY_SHORT_LINES };
+  }
+
   window.openDepartmentPage = function (deptId, targetProgId = null) {
     const dept = DEPARTMENTS.find((d) => d.id === deptId);
     if (!dept) return;
@@ -203,10 +212,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = document.createElement('div');
         item.className = 'work-summary-item';
         const people = Array.isArray(ws.people) && ws.people.length ? `<span class="work-people">(${escapeHtml(ws.people.join(', '))})</span>` : '';
+        const sum = dutySummary(ws.duty);
         item.innerHTML = `
           <div class="work-role-badge">📌 ${escapeHtml(ws.role)} ${people}</div>
-          <div class="work-duty-text">${escapeHtml(ws.duty)}</div>
+          <div class="work-duty-text">${sum.short.map((l) => `<div>${escapeHtml(l)}</div>`).join('')}</div>
+          ${sum.more ? `<div class="work-duty-full" hidden>${sum.full.map((l) => `<div class="${/^[-–]/.test(l) ? 'sub' : ''}">${escapeHtml(l)}</div>`).join('')}</div><button type="button" class="work-more">더보기 ▾</button>` : ''}
         `;
+        const more = item.querySelector('.work-more');
+        if (more) {
+          more.addEventListener('click', () => {
+            const open = item.classList.toggle('open');
+            item.querySelector('.work-duty-text').hidden = open;
+            item.querySelector('.work-duty-full').hidden = !open;
+            more.textContent = open ? '접기 ▴' : '더보기 ▾';
+          });
+        }
         workGrid.appendChild(item);
       });
     }
