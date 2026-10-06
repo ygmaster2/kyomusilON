@@ -125,11 +125,18 @@ document.addEventListener('DOMContentLoaded', () => {
       // 부서 버튼 클릭 시 아코디언 토글 & 부서 뷰 전환
       deptBtn.addEventListener('click', () => {
         const isExpanded = li.classList.contains('expanded');
+        if (isExpanded) {
+          // 열려 있던 부서를 다시 누르면 하위 메뉴만 접음 (보고 있던 화면이 다른 곳이면 이 부서 화면으로)
+          li.classList.remove('expanded');
+          const deptView = document.getElementById('departmentView');
+          if (currentDeptId !== dept.id || !deptView || deptView.style.display === 'none') openDepartmentPage(dept.id, null, false);
+          return;
+        }
         // 다른 열린 부서 닫기
         document.querySelectorAll('#departmentTreeList .tree-node').forEach((node) => {
           if (node !== li) node.classList.remove('expanded');
         });
-        li.classList.toggle('expanded', !isExpanded);
+        li.classList.add('expanded');
         openDepartmentPage(dept.id);
       });
 
@@ -167,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return { full: lines, short: base.slice(0, DUTY_SHORT_LINES).concat(base.length > DUTY_SHORT_LINES ? ['…'] : []), more: base.length < lines.length || base.length > DUTY_SHORT_LINES };
   }
 
-  window.openDepartmentPage = function (deptId, targetProgId = null) {
+  window.openDepartmentPage = function (deptId, targetProgId = null, expandTree = true) {
     const dept = DEPARTMENTS.find((d) => d.id === deptId);
     if (!dept) return;
     currentDeptId = deptId;
@@ -185,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const deptNode = document.getElementById(`deptNode-${dept.id}`);
     if (deptNode) {
       deptNode.querySelector('.tree-item-btn').classList.add('active');
-      deptNode.classList.add('expanded');
+      if (expandTree) deptNode.classList.add('expanded');
     }
 
     // 브레드크럼
